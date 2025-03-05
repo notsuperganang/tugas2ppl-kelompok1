@@ -1,3 +1,12 @@
 {
-  "movies": []
+  "movies": [
+    {
+      "id": "1741043022775",
+      "title": "Tobtobitobtobitop",
+      "year": 2004,
+      "director": "Tralalili Tralala",
+      "genre": "Thriller",
+      "rating": 10
+    }
+  ]
 }

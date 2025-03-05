@@ -1,154 +1,340 @@
+// index.js
 const fs = require('fs');
 const readline = require('readline');
 
+// Initialize readline interface
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
 });
 
+// Database file path
 const DB_FILE = './database.json';
 
+// Ensure database file exists
 if (!fs.existsSync(DB_FILE)) {
   fs.writeFileSync(DB_FILE, JSON.stringify({ movies: [] }, null, 2));
 }
 
+// Function to read database
 function readDatabase() {
-  return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+  try {
+    const data = fs.readFileSync(DB_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Error reading database:', error.message);
+    return { movies: [] };
+  }
 }
 
+// Function to write to database
 function writeDatabase(data) {
-  fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+  try {
+    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+    return true;
+  } catch (error) {
+    console.error('Error writing to database:', error.message);
+    return false;
+  }
 }
 
+// Function to display all movies
 function displayAllMovies() {
   const db = readDatabase();
+  
   if (db.movies.length === 0) {
-    console.log('\nNo movies found.');
-  } else {
-    console.log('\n=== MOVIE LIST ===');
-    db.movies.forEach((movie, index) => {
-      console.log(`${index + 1}. ${movie.title} (${movie.year}) - Rating: ${movie.rating}/10`);
-    });
+    console.log('\nThere are no movies in the database yet.');
+    return;
   }
-  showMainMenu();
+  
+  console.log('\n=== MOVIE LIST ===');
+  db.movies.forEach((movie, index) => {
+    console.log(`${index + 1}. ${movie.title} (${movie.year})`);
+    console.log(`   Director: ${movie.director}`);
+    console.log(`   Genre: ${movie.genre}`);
+    console.log(`   Rating: ${movie.rating}/10`);
+    console.log('------------------------------');
+  });
 }
 
+// Function to add a new movie
 function addMovie() {
-  rl.question('\nMovie title: ', (title) => {
-    if (!title.trim()) {
-      console.log('\nTitle cannot be empty!');
-      return showMainMenu();
-    }
-    rl.question('Release year: ', (year) => {
-      rl.question('Rating (0-10): ', (rating) => {
-        const db = readDatabase();
-        db.movies.push({
-          id: Date.now().toString(),
-          title,
-          year: parseInt(year) || 'Unknown',
-          rating: parseFloat(rating) || 0
+  rl.question('\nEnter movie title: ', (title) => {
+    rl.question('Enter release year: ', (year) => {
+      rl.question('Enter director name: ', (director) => {
+        rl.question('Enter genre: ', (genre) => {
+          rl.question('Enter rating (0-10): ', (rating) => {
+            const db = readDatabase();
+            
+            // Add new movie
+            db.movies.push({
+              id: Date.now().toString(),
+              title,
+              year: parseInt(year),
+              director,
+              genre,
+              rating: parseFloat(rating)
+            });
+            
+            if (writeDatabase(db)) {
+              console.log('\nMovie added successfully!');
+            }
+            
+            showMainMenu();
+          });
         });
-        writeDatabase(db);
-        console.log('\nMovie added!');
-        showMainMenu();
       });
     });
   });
 }
 
+// Function to view a single movie
 function viewSingleMovie() {
   const db = readDatabase();
+  
   if (db.movies.length === 0) {
-    console.log('\nNo movies found.');
-    return showMainMenu();
+    console.log('\nThere are no movies in the database yet.');
+    showMainMenu();
+    return;
   }
-  db.movies.forEach((movie, index) => console.log(`${index + 1}. ${movie.title}`));
-  rl.question('\nSelect movie number: ', (choice) => {
+  
+  console.log('\n=== SELECT A MOVIE ===');
+  db.movies.forEach((movie, index) => {
+    console.log(`${index + 1}. ${movie.title} (${movie.year})`);
+  });
+  
+  rl.question('\nEnter movie number to view details: ', (choice) => {
     const index = parseInt(choice) - 1;
+    
     if (isNaN(index) || index < 0 || index >= db.movies.length) {
-      console.log('\nInvalid selection!');
+      console.log('\nInvalid selection! Please try again.');
     } else {
       const movie = db.movies[index];
-      console.log(`\nTitle: ${movie.title}\nYear: ${movie.year}\nRating: ${movie.rating}/10`);
+      console.log('\n=== MOVIE DETAILS ===');
+      console.log(`Title: ${movie.title}`);
+      console.log(`Year: ${movie.year}`);
+      console.log(`Director: ${movie.director}`);
+      console.log(`Genre: ${movie.genre}`);
+      console.log(`Rating: ${movie.rating}/10`);
     }
+    
     showMainMenu();
   });
 }
 
+// Function to update a movie
 function updateMovie() {
   const db = readDatabase();
-  if (db.movies.length === 0) return console.log('\nNo movies found.'), showMainMenu();
   
-  db.movies.forEach((movie, index) => console.log(`${index + 1}. ${movie.title}`));
-  rl.question('\nSelect movie number to update: ', (choice) => {
+  if (db.movies.length === 0) {
+    console.log('\nThere are no movies in the database yet.');
+    showMainMenu();
+    return;
+  }
+  
+  console.log('\n=== SELECT A MOVIE TO UPDATE ===');
+  db.movies.forEach((movie, index) => {
+    console.log(`${index + 1}. ${movie.title} (${movie.year})`);
+  });
+  
+  rl.question('\nEnter movie number to update: ', (choice) => {
     const index = parseInt(choice) - 1;
+    
     if (isNaN(index) || index < 0 || index >= db.movies.length) {
-      console.log('\nInvalid selection!');
-      return showMainMenu();
+      console.log('\nInvalid selection! Please try again.');
+      showMainMenu();
+      return;
     }
     
-    rl.question(`New title (${db.movies[index].title}): `, (title) => {
-      db.movies[index].title = title.trim() || db.movies[index].title;
-      writeDatabase(db);
-      console.log('\nMovie updated!');
+    const movie = db.movies[index];
+    
+    rl.question(`\nEnter new title (${movie.title}): `, (title) => {
+      rl.question(`Enter new release year (${movie.year}): `, (year) => {
+        rl.question(`Enter new director (${movie.director}): `, (director) => {
+          rl.question(`Enter new genre (${movie.genre}): `, (genre) => {
+            rl.question(`Enter new rating (${movie.rating}): `, (rating) => {
+              // Update movie with new values or keep old ones if empty
+              db.movies[index] = {
+                id: movie.id,
+                title: title.trim() || movie.title,
+                year: parseInt(year) || movie.year,
+                director: director.trim() || movie.director,
+                genre: genre.trim() || movie.genre,
+                rating: parseFloat(rating) || movie.rating
+              };
+              
+              if (writeDatabase(db)) {
+                console.log('\nMovie updated successfully!');
+              }
+              
+              showMainMenu();
+            });
+          });
+        });
+      });
+    });
+  });
+}
+
+// Function to delete a movie
+function deleteMovie() {
+  const db = readDatabase();
+  
+  if (db.movies.length === 0) {
+    console.log('\nThere are no movies in the database yet.');
+    showMainMenu();
+    return;
+  }
+  
+  console.log('\n=== SELECT A MOVIE TO DELETE ===');
+  db.movies.forEach((movie, index) => {
+    console.log(`${index + 1}. ${movie.title} (${movie.year})`);
+  });
+  
+  rl.question('\nEnter movie number to delete: ', (choice) => {
+    const index = parseInt(choice) - 1;
+    
+    if (isNaN(index) || index < 0 || index >= db.movies.length) {
+      console.log('\nInvalid selection! Please try again.');
+      showMainMenu();
+      return;
+    }
+    
+    const movie = db.movies[index];
+    
+    rl.question(`\nAre you sure you want to delete "${movie.title}"? (y/n): `, (confirm) => {
+      if (confirm.toLowerCase() === 'y') {
+        db.movies.splice(index, 1);
+        
+        if (writeDatabase(db)) {
+          console.log('\nMovie deleted successfully!');
+        }
+      } else {
+        console.log('\nDeletion cancelled.');
+      }
+      
       showMainMenu();
     });
   });
 }
 
-function deleteMovie() {
-  const db = readDatabase();
-  if (db.movies.length === 0) return console.log('\nNo movies found.'), showMainMenu();
-  
-  db.movies.forEach((movie, index) => console.log(`${index + 1}. ${movie.title}`));
-  rl.question('\nSelect movie number to delete: ', (choice) => {
-    const index = parseInt(choice) - 1;
-    if (isNaN(index) || index < 0 || index >= db.movies.length) {
-      console.log('\nInvalid selection!');
-    } else {
-      db.movies.splice(index, 1);
-      writeDatabase(db);
-      console.log('\nMovie deleted!');
-    }
-    showMainMenu();
-  });
-}
-
+// Function to search movies
 function searchMovies() {
-  rl.question('\nSearch term: ', (term) => {
+  rl.question('\nEnter search term: ', (term) => {
     const db = readDatabase();
-    const results = db.movies.filter(movie => movie.title.toLowerCase().includes(term.toLowerCase()));
-    if (results.length === 0) console.log('\nNo movies found.');
-    else results.forEach((movie, i) => console.log(`${i + 1}. ${movie.title} (${movie.year}) - Rating: ${movie.rating}/10`));
+    const searchTerm = term.toLowerCase();
+    
+    const results = db.movies.filter(movie => 
+      movie.title.toLowerCase().includes(searchTerm) ||
+      movie.director.toLowerCase().includes(searchTerm) ||
+      movie.genre.toLowerCase().includes(searchTerm)
+    );
+    
+    if (results.length === 0) {
+      console.log(`\nNo movies found matching "${term}".`);
+    } else {
+      console.log(`\n=== SEARCH RESULTS FOR "${term}" ===`);
+      results.forEach((movie, index) => {
+        console.log(`${index + 1}. ${movie.title} (${movie.year})`);
+        console.log(`   Director: ${movie.director}`);
+        console.log(`   Genre: ${movie.genre}`);
+        console.log(`   Rating: ${movie.rating}/10`);
+        console.log('------------------------------');
+      });
+    }
+    
     showMainMenu();
   });
 }
 
+// Function to show statistics
 function showStatistics() {
   const db = readDatabase();
-  if (db.movies.length === 0) return console.log('\nNo movies found.'), showMainMenu();
-
+  
+  if (db.movies.length === 0) {
+    console.log('\nThere are no movies in the database yet.');
+    showMainMenu();
+    return;
+  }
+  
+  // Calculate statistics
   const totalMovies = db.movies.length;
-  const avgRating = (db.movies.reduce((sum, movie) => sum + (movie.rating || 0), 0) / totalMovies).toFixed(1);
-
-  console.log(`\nTotal movies: ${totalMovies}`);
-  console.log(`Average rating: ${avgRating}/10`);
+  const avgRating = db.movies.reduce((sum, movie) => sum + movie.rating, 0) / totalMovies;
+  
+  // Group by genre
+  const genreCount = {};
+  db.movies.forEach(movie => {
+    genreCount[movie.genre] = (genreCount[movie.genre] || 0) + 1;
+  });
+  
+  // Find highest rated movie
+  let highestRated = db.movies[0];
+  db.movies.forEach(movie => {
+    if (movie.rating > highestRated.rating) {
+      highestRated = movie;
+    }
+  });
+  
+  console.log('\n=== DATABASE STATISTICS ===');
+  console.log(`Total movies: ${totalMovies}`);
+  console.log(`Average rating: ${avgRating.toFixed(1)}`);
+  console.log('\nMovies by genre:');
+  Object.entries(genreCount).forEach(([genre, count]) => {
+    console.log(`  ${genre}: ${count}`);
+  });
+  console.log(`\nHighest rated movie: ${highestRated.title} (${highestRated.rating}/10)`);
+  
   showMainMenu();
 }
 
+// Main menu function
 function showMainMenu() {
-  console.log('\n1. View movies\n2. Add movie\n3. View details\n4. Update movie\n5. Delete movie\n6. Search movies\n7. Show statistics\n8. Exit');
-  rl.question('\nChoose option: ', (choice) => {
-    if (choice === '1') displayAllMovies();
-    else if (choice === '2') addMovie();
-    else if (choice === '3') viewSingleMovie();
-    else if (choice === '4') updateMovie();
-    else if (choice === '5') deleteMovie();
-    else if (choice === '6') searchMovies();
-    else if (choice === '7') showStatistics();
-    else rl.close();
+  console.log('\n=== MOVIEBASE ===');
+  console.log('Select an option:');
+  console.log('1. View all movies');
+  console.log('2. Add a new movie');
+  console.log('3. View movie details');
+  console.log('4. Update a movie');
+  console.log('5. Delete a movie');
+  console.log('6. Search movies');
+  console.log('7. Show statistics');
+  console.log('8. Exit');
+  
+  rl.question('\nEnter option number: ', (choice) => {
+    switch (choice) {
+      case '1':
+        displayAllMovies();
+        showMainMenu();
+        break;
+      case '2':
+        addMovie();
+        break;
+      case '3':
+        viewSingleMovie();
+        break;
+      case '4':
+        updateMovie();
+        break;
+      case '5':
+        deleteMovie();
+        break;
+      case '6':
+        searchMovies();
+        break;
+      case '7':
+        showStatistics();
+        break;
+      case '8':
+        console.log('\nThank you for using MovieBase! Goodbye.');
+        rl.close();
+        break;
+      default:
+        console.log('\nInvalid option! Please try again.');
+        showMainMenu();
+    }
   });
 }
 
-console.log('\nWelcome to MovieBase!');
+// Start application
+console.log('\nWelcome to MovieBase - Your Personal Movie Database');
 showMainMenu();
